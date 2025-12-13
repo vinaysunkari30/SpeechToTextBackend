@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { createClient } from "@deepgram/sdk"
-import { User, Transcription } from '../schema.js'
+import { User, Transcription } from './schema.js'
 
 const app = express()
 dotenv.config()
@@ -66,7 +66,8 @@ app.post('/sign-in', async(request, response)=>{
       ...request.body,
       password: hashedPassword,
     }) 
-    await userData.save()
+    await userData.save();
+    response.status(201).send({ message: "User created successfully" });
   }
 })
 
@@ -148,7 +149,7 @@ app.post("/upload-audio", authenticateToken, upload.single("audio"), async (req,
 
 app.get('/transcriptions', authenticateToken, async(request, response)=>{
   try{
-    const transcriptions = await Transcription.find()
+    const transcriptions = await Transcription.find({ userId: request.id })
     const formatted = transcriptions.map(transcription => ({
       id: transcription._id,
       text: transcription.transcriptionText,
@@ -161,5 +162,9 @@ app.get('/transcriptions', authenticateToken, async(request, response)=>{
     res.status(500).json({ error: "Failed to load transcriptions" });
   }
 })
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 export default app; 
