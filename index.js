@@ -67,7 +67,7 @@ app.post('/sign-in', async(request, response)=>{
       password: hashedPassword,
     }) 
     await userData.save();
-    response.status(201).send({ message: "User created successfully" });
+    response.status(200).send({ message: "User created successfully" });
   }
 })
 
