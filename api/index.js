@@ -1,15 +1,16 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+dotenv.config({ path: "../.env" });
 import cors from 'cors';
 import bcrypt from 'bcrypt';  
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import { createClient } from "@deepgram/sdk"
-import { User, Transcription } from './schema.js'
+import { User, Transcription } from '../schema.js'
 
 const app = express()
-dotenv.config()
+
 app.use(express.json())
 
 const storage = multer.memoryStorage();
@@ -21,6 +22,7 @@ const PORT = process.env.PORT || 5000;
 const MONGOURL = process.env.MONGODB_URL
 const SECRET_KEY = process.env.SECRET_KEY
 const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
+
 
 const deepgram = createClient(deepgramApiKey);
 
@@ -66,8 +68,7 @@ app.post('/sign-in', async(request, response)=>{
       ...request.body,
       password: hashedPassword,
     }) 
-    await userData.save();
-    response.status(200).send({ message: "User created successfully" });
+    await userData.save()
   }
 })
 
@@ -149,7 +150,7 @@ app.post("/upload-audio", authenticateToken, upload.single("audio"), async (req,
 
 app.get('/transcriptions', authenticateToken, async(request, response)=>{
   try{
-    const transcriptions = await Transcription.find({ userId: request.id })
+    const transcriptions = await Transcription.find()
     const formatted = transcriptions.map(transcription => ({
       id: transcription._id,
       text: transcription.transcriptionText,
@@ -162,9 +163,5 @@ app.get('/transcriptions', authenticateToken, async(request, response)=>{
     res.status(500).json({ error: "Failed to load transcriptions" });
   }
 })
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 
 export default app; 
