@@ -1,34 +1,36 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 dotenv.config({ path: "../.env" });
-import cors from 'cors';
-import bcrypt from 'bcrypt';  
-import jwt from 'jsonwebtoken';
-import multer from 'multer';
-import { createClient } from "@deepgram/sdk"
-import { User, Transcription } from '../schema.js'
+import cors from "cors";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import multer from "multer";
+import { createClient } from "@deepgram/sdk";
+import { User, Transcription } from "../schema.js";
 
-const app = express()
+const app = express();
 
-app.use(express.json())
+app.use(express.json());
 
 const storage = multer.memoryStorage();
-const upload = multer({storage});
+const upload = multer({ storage });
 
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
-const MONGOURL = process.env.MONGODB_URL
-const SECRET_KEY = process.env.SECRET_KEY
+const MONGOURL = process.env.MONGODB_URL;
+const SECRET_KEY = process.env.SECRET_KEY;
 const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
-
 
 const deepgram = createClient(deepgramApiKey);
 
-mongoose.connect(MONGOURL).then(()=> {
-  console.log('DB is connected successfully');
-}).catch((error)=> console.log(error))
+mongoose
+  .connect(MONGOURL)
+  .then(() => {
+    console.log("DB is connected successfully");
+  })
+  .catch((error) => console.log(error));
 
 app.get("/", (req, res) => {
   res.send("Backend is running");
@@ -49,50 +51,51 @@ const authenticateToken = (request, response, next) => {
         response.status(401);
         response.send("Invalid JWT Token");
       } else {
-        request.id = payload.id
+        request.id = payload.id;
         next();
       }
     });
   }
 };
 
-app.post('/sign-in', async(request, response)=>{
-  const {password, email} = request.body;
-  const userExists = await User.findOne({email})
-  if(userExists){
-    response.status(400)
-    response.send({message: 'User already exists'})
-  }else{
+app.post("/sign-in", async (request, response) => {
+  const { password, email } = request.body;
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    response.status(400);
+    response.send({ message: "User already exists" });
+  } else {
     const hashedPassword = await bcrypt.hash(password, 10);
     const userData = new User({
       ...request.body,
       password: hashedPassword,
-    }) 
-    await userData.save()
+    });
+    await userData.save();
   }
-})
+});
 
-app.post('/login', async(request, response)=>{
-  const {email, password} = request.body;
-  const userData = await User.findOne({email});
-  if(userData === null){
+app.post("/login", async (request, response) => {
+  const { email, password } = request.body;
+  const userData = await User.findOne({ email });
+  if (userData === null) {
     response.status(400);
-    response.send({message: "User doesn't Exists"})
-  }else{
-    const isPasswordSame = await bcrypt.compare(password, userData.password)
-    if(isPasswordSame){
+    response.send({ message: "User doesn't Exists" });
+  } else {
+    const isPasswordSame = await bcrypt.compare(password, userData.password);
+    if (isPasswordSame) {
       const payload = {
-        id: userData._id, email: userData.email
-      }
+        id: userData._id,
+        email: userData.email,
+      };
       const token = jwt.sign(payload, SECRET_KEY);
       response.status(200);
-      response.send({jwtToken: token})
-    }else{
+      response.send({ jwtToken: token });
+    } else {
       response.status(400);
-      response.send({message: "Password didn't matched"})
+      response.send({ message: "Password didn't matched" });
     }
   }
-})
+});
 
 const transcribeFile = async (file) => {
   try {
@@ -111,16 +114,20 @@ const transcribeFile = async (file) => {
 
     if (error) throw error;
 
-    const transcript = result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
+    const transcript =
+      result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || "";
     return transcript;
-
   } catch (err) {
     console.error("Deepgram transcription error:", err.message);
     throw err;
   }
 };
 
-app.post("/upload-audio", authenticateToken, upload.single("audio"), async (req, res) => {
+app.post(
+  "/upload-audio",
+  authenticateToken,
+  upload.single("audio"),
+  async (req, res) => {
     try {
       if (!req.file) return res.status(400).send("No file uploaded");
 
@@ -148,13 +155,15 @@ app.post("/upload-audio", authenticateToken, upload.single("audio"), async (req,
   }
 );
 
-app.get('/transcriptions', authenticateToken, async(request, response)=>{
-  try{
-    const transcriptions = await Transcription.find()
-    const formatted = transcriptions.map(transcription => ({
+app.get("/transcriptions", authenticateToken, async (request, response) => {
+  try {
+    const transcriptions = await Transcription.find();
+    const formatted = transcriptions.map((transcription) => ({
       id: transcription._id,
       text: transcription.transcriptionText,
-      audio: `data:${transcription.audioFile.contentType};base64,${transcription.audioFile.data.toString('base64')}`,
+      audio: `data:${
+        transcription.audioFile.contentType
+      };base64,${transcription.audioFile.data.toString("base64")}`,
       createdAt: transcription.createdAt,
     }));
     response.json(formatted);
@@ -162,6 +171,10 @@ app.get('/transcriptions', authenticateToken, async(request, response)=>{
     console.error("Error fetching transcriptions:", err);
     res.status(500).json({ error: "Failed to load transcriptions" });
   }
-})
+});
 
-export default app; 
+app.listen(PORT, () => {
+  console.log(`Server is running at ${PORT} port`);
+});
+
+export default app;
